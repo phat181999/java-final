@@ -14,7 +14,10 @@ import java.util.stream.IntStream;
 public class TestUtils {
 
     public static void injectObjects(Object target, String fieldName, Object toInject) {
-
+        if (target == null) {
+            throw new IllegalArgumentException("Target object cannot be null");
+        }
+    
         boolean wasPrivate = false;
 
         try {
@@ -36,17 +39,22 @@ public class TestUtils {
 
     }
 
-    public static User createUser() {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("fymo");
-        user.setPassword("password");
-        user.setCart(createCart(user));
-
-        return user;
+    public static Cart createUser() {
+       
+    
+        Cart cart = new Cart();
+        cart.setId(1L);
+        List<Item> items = createItems();
+        cart.setItems(items);
+        cart.setTotal(items.stream().map(Item::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add));
+    
+        return cart;
     }
 
     public static Cart createCart(User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("User cannot be null");
+        }
         Cart cart = new Cart();
         cart.setId(1L);
         List<Item> items = createItems();
@@ -69,6 +77,10 @@ public class TestUtils {
     }
 
     public static Item createItem(long id){
+        if (id <= 0) {
+            throw new IllegalArgumentException("ID must be greater than zero");
+        }
+    
         Item item = new Item();
         item.setId(id);
 
@@ -78,23 +90,6 @@ public class TestUtils {
 
         item.setDescription("Description ");
         return item;
-    }
-
-    public static List<UserOrder> createOrders(){
-        List<UserOrder> orders = new ArrayList<>();
-
-        IntStream.range(0,2).forEach(i -> {
-            UserOrder order = new UserOrder();
-            Cart cart = createCart(createUser());
-
-            order.setItems(cart.getItems());
-            order.setTotal(cart.getTotal());
-            order.setUser(createUser());
-            order.setId(Long.valueOf(i));
-
-            orders.add(order);
-        });
-        return orders;
     }
 
 }
