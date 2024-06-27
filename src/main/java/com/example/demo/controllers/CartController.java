@@ -39,47 +39,22 @@ public class CartController {
 	@PostMapping("/addToCart")
 	public ResponseEntity<Cart> addTocart(@RequestBody ModifyCartRequest request) {
 		User user = userRepository.findByUsername(request.getUsername());
-		if (user == null) {
-			log.error("[ADD TO CART] [Failure] User not found: " + request.getUsername());
-		}
-
 		Optional<Item> item = itemRepository.findById(request.getItemId());
-		if (!item.isPresent()) {
-			log.error("[ADD TO CART] [Failure] Item not found: " + request.getItemId());
-		}
-
 		Cart cart = user.getCart();
 		IntStream.range(0, request.getQuantity())
 			.forEach(i -> cart.addItem(item.get()));
 		cartRepository.save(cart);
-
-		log.info("[ADD TO CART] [Success] for user: " + user.getUsername());
 		return ResponseEntity.ok(cart);
 	}
 	
 	@PostMapping("/removeFromCart")
 	public ResponseEntity<Cart> removeFromcart(@RequestBody ModifyCartRequest request) {
 		User user = userRepository.findByUsername(request.getUsername());
-		if (user == null) {
-			log.error("[REMOVE FROM CART] [Failure] User not found: " + request.getUsername());
-		}
-	
 		Optional<Item> item = itemRepository.findById(request.getItemId());
-		if (!item.isPresent()) {
-			log.error("[REMOVE FROM CART] [Failure] Item not found: " + request.getItemId());
-		}
-	
 		Cart cart = user.getCart();
-		long itemCount = cart.getItems().stream().filter(i -> i.equals(item.get())).count();
-		if (itemCount < request.getQuantity()) {
-			log.error("[REMOVE FROM CART] [Failure] Insufficient quantity of item in cart: " + request.getItemId());
-		}
-	
 		IntStream.range(0, request.getQuantity())
 			.forEach(i -> cart.removeItem(item.get()));
 		cartRepository.save(cart);
-	
-		log.info("[REMOVE FROM CART] [Success] for user: " + user.getUsername());
 		return ResponseEntity.ok(cart);
 	}
 		

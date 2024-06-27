@@ -51,26 +51,11 @@ public class UserController {
 	public ResponseEntity createUser(@RequestBody CreateUserRequest createUserRequest) {
 		User user = new User();
 		user.setUsername(createUserRequest.getUsername());
-
 		Cart cart = new Cart();
-
 		cartRepository.save(cart);
 		user.setCart(cart);
-
-		if(createUserRequest.getPassword().length() < 7 ){
-			log.error("[CREATE USER] [Fail] for user : " + user.getUsername() +", REASON : invalid password" );
-			return ResponseEntity.badRequest().body("Password must be at least 7 characters.");
-		}else if (!createUserRequest.getPassword().equals(createUserRequest.getConfirmPassword())){
-			log.error("[CREATE USER] [Fail] for user : " + user.getUsername() +", REASON : password mismatching" );
-			return ResponseEntity.badRequest().body("Password field does not match confirm password field");
-		}
-
 		user.setPassword(bCryptPasswordEncoder.encode(createUserRequest.getPassword()));
-
 		userRepository.save(user);
-
-		log.info("[CREATE USER] [Success] for user : " + user.getUsername());
-
 		return ResponseEntity.ok(user);
 	}
 	

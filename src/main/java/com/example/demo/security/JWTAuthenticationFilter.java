@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -23,13 +22,13 @@ import java.util.Date;
 
 import static com.auth0.jwt.algorithms.Algorithm.HMAC512;
 
-public class jwtAuthenFilter extends UsernamePasswordAuthenticationFilter {
+public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
-    private Logger log = LoggerFactory.getLogger(jwtAuthenFilter.class);
+    private Logger log = LoggerFactory.getLogger(JWTAuthenticationFilter.class);
 
     private AuthenticationManager authenticationManager;
 
-    public jwtAuthenFilter(AuthenticationManager authenticationManager) {
+    public JWTAuthenticationFilter(AuthenticationManager authenticationManager) {
         this.authenticationManager = authenticationManager;
     }
 
@@ -37,20 +36,14 @@ public class jwtAuthenFilter extends UsernamePasswordAuthenticationFilter {
     public Authentication attemptAuthentication(HttpServletRequest req,
                                                 HttpServletResponse res) throws AuthenticationException {
         try {
+            
             User creds = new ObjectMapper().readValue(req.getInputStream(), User.class);
-
-        if (creds == null || creds.getUsername() == null || creds.getPassword() == null ||
-                creds.getUsername().isEmpty() || creds.getPassword().isEmpty()) {
-            throw new BadCredentialsException("Invalid credentials");
-        }
-
-        return authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        creds.getUsername(),
-                        creds.getPassword(),
-                        new ArrayList<>() // Optionally, specify the type here
-                )
-        );
+            return authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            creds.getUsername(),
+                            creds.getPassword(),
+                            new ArrayList<>())
+            );
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -61,18 +54,21 @@ public class jwtAuthenFilter extends UsernamePasswordAuthenticationFilter {
                                             HttpServletResponse res,
                                             FilterChain chain,
                                             Authentication auth) throws IOException, ServletException {
-        if (auth != null && auth.isAuthenticated()) {
-            String username = ((org.springframework.security.core.userdetails.User) auth.getPrincipal()).getUsername();
-            String token = JWT.create()
-                    .withSubject(username)
-                    .withExpiresAt(new Date(System.currentTimeMillis() + SecurityConstants.EXPIRATION_TIME))
-                    .sign(HMAC512(SecurityConstants.SECRET.getBytes()));
-            res.addHeader(SecurityConstants.HEADER_STRING, SecurityConstants.TOKEN_PREFIX + token);
-            log.info("[LOGIN] [Success] for user: " + username);
-        } else {
-            log.warn("[LOGIN] [Failed] Authentication object is null or not authenticated");
-            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            res.getWriter().write("Authentication failed");
+        String username = ((org.springframework.security.core.userdetails.User) auth.getPrincipal()).getUsername();
+        if (!hasRequiredRole(auth, "ROLE_USER")) {
+            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permissions");
+            return;
         }
+    
+        String token = JWT.create()
+                .withSubject(username)
+                .withExpiresAt(new Date(System.currentTimeMillis() + SecurityConstants.EXPIRATION_TIME))
+                .sign(HMAC512(SecurityConstants.SECRET.getBytes()));
+        res.addHeader(SecurityConstants.HEADER_STRING, SecurityConstants.TOKEN_PREFIX + token);
+    }
+    
+    private boolean hasRequiredRole(Authentication auth, String role) {
+        return auth.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals(role));
     }
 }
