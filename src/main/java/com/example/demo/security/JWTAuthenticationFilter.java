@@ -38,12 +38,16 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         try {
             
             User creds = new ObjectMapper().readValue(req.getInputStream(), User.class);
-            return authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            creds.getUsername(),
-                            creds.getPassword(),
-                            new ArrayList<>())
-            );
+            if (creds == null) {
+                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permissions");
+            }
+
+                return authenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(
+                                creds.getUsername(),
+                                creds.getPassword(),
+                                new ArrayList<>())
+                );
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -59,7 +63,9 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
             res.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permissions");
             return;
         }
-    
+        if (username == null) {
+            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permissions");
+        }
         String token = JWT.create()
                 .withSubject(username)
                 .withExpiresAt(new Date(System.currentTimeMillis() + SecurityConstants.EXPIRATION_TIME))
