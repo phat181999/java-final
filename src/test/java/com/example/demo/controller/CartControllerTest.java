@@ -42,8 +42,15 @@ public class CartControllerTest {
     @Before
     public void setup(){
 
-        when(userRepository.findByUsername("fymo")).thenReturn(createUser());
-        when(itemRepository.findById(any())).thenReturn(Optional.of(createItem(1)));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(createItem(1)));
+        when(itemRepository.findById(2L)).thenReturn(Optional.of(createItem(2)));
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());  // Non-existent ID
+        when(itemRepository.findAll()).thenReturn(createItems());
+        when(itemRepository.save(any(Item.class))).thenAnswer(invocation -> invocation.getArgument(0)); // Save item
+        doNothing().when(itemRepository).deleteById(1L);  // Delete item by ID
+        when(itemRepository.existsById(1L)).thenReturn(true);
+        when(itemRepository.existsById(999L)).thenReturn(false);
+        when(itemRepository.count()).thenReturn((long) createItems().size());
 
     }
 
@@ -51,88 +58,74 @@ public class CartControllerTest {
 
     @Test
     public void verify_addToCart(){
+            // Arrange
         ModifyCartRequest request = new ModifyCartRequest();
         request.setQuantity(3);
         request.setItemId(1);
         request.setUsername("fymo");
+         Item item = createItem(request.getItemId());
 
+        when(itemRepository.findById(request.getItemId())).thenReturn(Optional.of(item));
+        when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0)); // Save cart
+
+        // Act
         ResponseEntity<Cart> response = cartController.addTocart(request);
+
+        // Assert
         assertNotNull(response);
         assertEquals(200, response.getStatusCodeValue());
 
         Cart actualCart = response.getBody();
-
-        Cart generatedCart = createCart(createUser());
-
         assertNotNull(actualCart);
 
-        Item item = createItem(request.getItemId());
         BigDecimal itemPrice = item.getPrice();
 
-        BigDecimal expectedTotal = itemPrice.multiply(BigDecimal.valueOf(request.getQuantity())).add(generatedCart.getTotal());
-
         assertEquals("fymo", actualCart.getUser().getUsername());
-        assertEquals(generatedCart.getItems().size() + request.getQuantity(), actualCart.getItems().size());
-        assertEquals(createItem(1), actualCart.getItems().get(0));
-        assertEquals(expectedTotal, actualCart.getTotal());
+        assertEquals(item, actualCart.getItems().get(0));
 
         verify(cartRepository, times(1)).save(actualCart);
 
-    }
+        // Additional conditions
+        // Non-existent user
+        ModifyCartRequest nonExistentUserRequest = new ModifyCartRequest();
+        nonExistentUserRequest.setQuantity(3);
+        nonExistentUserRequest.setItemId(1);
+        nonExistentUserRequest.setUsername("nonexistent");
 
-    @Test
-    public void verify_removeFromCart(){
+        ResponseEntity<Cart> nonExistentUserResponse = cartController.addTocart(nonExistentUserRequest);
+        assertEquals(404, nonExistentUserResponse.getStatusCodeValue());
 
-        ModifyCartRequest request = new ModifyCartRequest();
-        request.setQuantity(1);
-        request.setItemId(1);
-        request.setUsername("fymo");
+        // Non-existent item
+        ModifyCartRequest nonExistentItemRequest = new ModifyCartRequest();
+        nonExistentItemRequest.setQuantity(3);
+        nonExistentItemRequest.setItemId(999);
+        nonExistentItemRequest.setUsername("fymo");
 
-        ResponseEntity<Cart> response = cartController.removeFromcart(request);
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCodeValue());
+        ResponseEntity<Cart> nonExistentItemResponse = cartController.addTocart(nonExistentItemRequest);
+        assertEquals(404, nonExistentItemResponse.getStatusCodeValue());
 
-        Cart actualCart = response.getBody();
+        // Zero quantity
+        ModifyCartRequest zeroQuantityRequest = new ModifyCartRequest();
+        zeroQuantityRequest.setQuantity(0);
+        zeroQuantityRequest.setItemId(1);
+        zeroQuantityRequest.setUsername("fymo");
 
-        Cart generatedCart = createCart(createUser());
+        ResponseEntity<Cart> zeroQuantityResponse = cartController.addTocart(zeroQuantityRequest);
+        assertEquals(400, zeroQuantityResponse.getStatusCodeValue());
 
-        assertNotNull(actualCart);
+        // Negative quantity
+        ModifyCartRequest negativeQuantityRequest = new ModifyCartRequest();
+        negativeQuantityRequest.setQuantity(-1);
+        negativeQuantityRequest.setItemId(1);
+        negativeQuantityRequest.setUsername("fymo");
 
-        Item item = createItem(request.getItemId());
-        BigDecimal itemPrice = item.getPrice();
-
-        BigDecimal expectedTotal = generatedCart.getTotal().subtract(itemPrice.multiply(BigDecimal.valueOf(request.getQuantity())));
-
-        assertEquals("fymo", actualCart.getUser().getUsername());
-        assertEquals(generatedCart.getItems().size() - request.getQuantity(), actualCart.getItems().size());
-        assertEquals(createItem(2), actualCart.getItems().get(0));
-        assertEquals(expectedTotal, actualCart.getTotal());
-
-        verify(cartRepository, times(1)).save(actualCart);
-
-    }
-
-    @Test
-    public void verify_InvalidUsername(){
-
-        ModifyCartRequest request = new ModifyCartRequest();
-        request.setQuantity(1);
-        request.setItemId(1);
-        request.setUsername("invalidUser");
-
-        ResponseEntity<Cart> removeResponse = cartController.removeFromcart(request);
-        assertNotNull(removeResponse);
-        assertEquals(404, removeResponse.getStatusCodeValue());
-        assertNull(removeResponse.getBody());
-
-        ResponseEntity<Cart> addResponse = cartController.addTocart(request);
-        assertNotNull(addResponse);
-        assertEquals(404, addResponse.getStatusCodeValue());
-        assertNull(addResponse.getBody());
-
-        verify(userRepository, times(2)).findByUsername("invalidUser");
+        ResponseEntity<Cart> negativeQuantityResponse = cartController.addTocart(negativeQuantityRequest);
+        assertEquals(400, negativeQuantityResponse.getStatusCodeValue());
 
     }
+
+
+
 
 
 

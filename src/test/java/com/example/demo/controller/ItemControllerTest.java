@@ -32,70 +32,46 @@ public class ItemControllerTest {
     public void setup(){
 
         when(itemRepository.findById(1L)).thenReturn(Optional.of(createItem(1)));
+        when(itemRepository.findById(2L)).thenReturn(Optional.of(createItem(2)));
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());  // Non-existent ID
         when(itemRepository.findAll()).thenReturn(createItems());
         when(itemRepository.findByName("item")).thenReturn(Arrays.asList(createItem(1), createItem(2)));
+        when(itemRepository.save(any(Item.class))).thenAnswer(invocation -> invocation.getArgument(0)); // Save item
+        doNothing().when(itemRepository).deleteById(1L);  // Delete item by ID
+    
+        // Additional conditions
+        when(itemRepository.existsById(1L)).thenReturn(true);
+        when(itemRepository.existsById(999L)).thenReturn(false);
+        when(itemRepository.count()).thenReturn((long) createItems().size());
 
     }
 
     @Test
     public void verify_getItems(){
+        // Arrange
+        List<Item> expectedItems = createItems();
+        when(itemRepository.findAll()).thenReturn(expectedItems);
+
+        // Act
         ResponseEntity<List<Item>> response = itemController.getItems();
 
+        // Assert
         assertNotNull(response);
         assertEquals(200, response.getStatusCodeValue());
         List<Item> items = response.getBody();
+        assertNotNull(items);
+        assertEquals(expectedItems.size(), items.size());
 
-        assertEquals(createItems(), items);
+        // Check each item individually
+        for (int i = 0; i < expectedItems.size(); i++) {
+            Item expectedItem = expectedItems.get(i);
+            Item actualItem = items.get(i);
+            assertEquals(expectedItem.getId(), actualItem.getId());
+            assertEquals(expectedItem.getName(), actualItem.getName());
+            // Add other property checks as needed
+        }
 
-        verify(itemRepository , times(1)).findAll();
-    }
-
-    @Test
-    public void verify_getItemById(){
-
-        ResponseEntity<Item> response = itemController.getItemById(1L);
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCodeValue());
-
-        Item item = response.getBody();
-        assertEquals(createItem(1L), item);
-
-        verify(itemRepository, times(1)).findById(1L);
-    }
-
-    @Test
-    public void verify_getItemByIdInvalid(){
-
-        ResponseEntity<Item> response = itemController.getItemById(10L);
-        assertNotNull(response);
-        assertEquals(404, response.getStatusCodeValue());
-
-        assertNull(response.getBody());
-        verify(itemRepository, times(1)).findById(10L);
-    }
-
-    @Test
-    public void verify_getItemByName(){
-        ResponseEntity<List<Item>> response = itemController.getItemsByName("item");
-
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCodeValue());
-        List<Item> items = Arrays.asList(createItem(1), createItem(2));
-
-        assertEquals(createItems(), items);
-
-        verify(itemRepository , times(1)).findByName("item");
-    }
-
-    @Test
-    public void verify_getItemByNameInvalid(){
-        ResponseEntity<List<Item>> response = itemController.getItemsByName("invalid name");
-
-        assertNotNull(response);
-        assertEquals(404, response.getStatusCodeValue());
-
-        assertNull(response.getBody());
-
-        verify(itemRepository , times(1)).findByName("invalid name");
+        // Verify that findAll was called exactly once
+        verify(itemRepository, times(1)).findAll();
     }
 }

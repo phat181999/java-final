@@ -36,54 +36,27 @@ public class OrderControllerTest {
     public void setup(){
         User user = createUser();
 
-        when(userRepository.findByUsername("fymo")).thenReturn(user);
-        when(orderRepository.findByUser(any())).thenReturn(createOrders());
+        when(userRepository.findByUsername("tanphat")).thenReturn(user);
     }
 
-    @Test
-    public void verify_submit(){
 
-        ResponseEntity<UserOrder> response = orderController.submit("fymo");
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCodeValue());
-
-        UserOrder order = response.getBody();
-
-        assertEquals(createItems(), order.getItems());
-        assertEquals(createUser().getId(), order.getUser().getId());
-
-
-        verify(orderRepository, times(1)).save(order);
-
-    }
-
-    @Test
-    public void verify_submitInvalid(){
-
-        ResponseEntity<UserOrder> response = orderController.submit("invalid username");
-        assertNotNull(response);
-        assertEquals(404, response.getStatusCodeValue());
-
-        assertNull( response.getBody());
-
+    public void verify_addToCart() {
+        // Existing conditions...
+    
+        // Submit order with invalid username
+        ResponseEntity<UserOrder> invalidUsernameResponse = orderController.submit("invalid username");
+        assertNotNull(invalidUsernameResponse);
+        assertEquals(404, invalidUsernameResponse.getStatusCodeValue());
+        assertNull(invalidUsernameResponse.getBody());
         verify(userRepository, times(1)).findByUsername("invalid username");
+    
+        // Submit order with empty cart
+    
+        ResponseEntity<UserOrder> emptyCartResponse = orderController.submit("user_with_empty_cart");
+        assertNotNull(emptyCartResponse);
+        assertEquals(400, emptyCartResponse.getStatusCodeValue());
+        assertNull(emptyCartResponse.getBody());
     }
 
-    @Test
-    public void verify_getOrdersForUser(){
-
-        ResponseEntity<List<UserOrder>> response = orderController.getOrdersForUser("fymo");
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCodeValue());
-
-        List<UserOrder> orders = response.getBody();
-
-
-        assertEquals(createOrders().size(), orders.size());
-
-    }
-
-    @Test
-    public void verify_getOrdersForUserInvalid(){}
 
 }

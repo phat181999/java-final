@@ -16,19 +16,28 @@ public class TestUtils {
     public static void injectObjects(Object target, String fieldName, Object toInject) {
 
         boolean wasPrivate = false;
-
+        if (target == null || fieldName == null || toInject == null) {
+            throw new IllegalArgumentException("Null argument passed to injectObjects");
+        }
+    
         try {
             Field declaredField = target.getClass().getDeclaredField(fieldName);
+
             if(!declaredField.isAccessible()){
                 declaredField.setAccessible(true);
                 wasPrivate = true;
             }
-
+if (!declaredField.getType().isAssignableFrom(toInject.getClass())) {
+            throw new IllegalArgumentException("Cannot inject object of type " + toInject.getClass().getName()
+                    + " into field " + fieldName + " of type " + declaredField.getType().getName());
+        }
             declaredField.set(target, toInject);
             if(wasPrivate){
                 declaredField.setAccessible(false);
             }
-
+            if (!declaredField.isAccessible()) {
+                declaredField.setAccessible(false);
+            }
         } catch (NoSuchFieldException | IllegalAccessException e) {
             e.printStackTrace();
         }
@@ -39,14 +48,25 @@ public class TestUtils {
     public static User createUser() {
         User user = new User();
         user.setId(1L);
-        user.setUsername("fymo");
-        user.setPassword("password");
+        user.setUsername("tanphat");
+        user.setPassword("tanphat");
+        if (user.getUsername() == null || user.getUsername().isEmpty()) {
+            throw new IllegalArgumentException("Username cannot be empty");
+        }
+
+        if (user.getPassword() == null || user.getPassword().isEmpty() || user.getPassword().length() < 8) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long");
+        }
         user.setCart(createCart(user));
 
         return user;
     }
 
     public static Cart createCart(User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("User cannot be null.");
+        }
+    
         Cart cart = new Cart();
         cart.setId(1L);
         List<Item> items = createItems();
@@ -69,6 +89,9 @@ public class TestUtils {
     }
 
     public static Item createItem(long id){
+        if (id < 0) {
+            throw new IllegalArgumentException("cannot be null.");
+        }
         Item item = new Item();
         item.setId(id);
 
@@ -80,21 +103,6 @@ public class TestUtils {
         return item;
     }
 
-    public static List<UserOrder> createOrders(){
-        List<UserOrder> orders = new ArrayList<>();
-
-        IntStream.range(0,2).forEach(i -> {
-            UserOrder order = new UserOrder();
-            Cart cart = createCart(createUser());
-
-            order.setItems(cart.getItems());
-            order.setTotal(cart.getTotal());
-            order.setUser(createUser());
-            order.setId(Long.valueOf(i));
-
-            orders.add(order);
-        });
-        return orders;
-    }
+   
 
 }

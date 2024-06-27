@@ -21,6 +21,9 @@ import com.example.demo.model.persistence.repositories.CartRepository;
 import com.example.demo.model.persistence.repositories.UserRepository;
 import com.example.demo.model.requests.CreateUserRequest;
 
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
@@ -49,6 +52,13 @@ public class UserController {
 	
 	@PostMapping("/create")
 	public ResponseEntity createUser(@RequestBody CreateUserRequest createUserRequest) {
+		if (!createUserRequest.getPassword().equals(createUserRequest.getConfirmPassword())) {
+            return ResponseEntity.badRequest().body("Password and Confirm Password do not match");
+        }
+
+        if (createUserRequest.getPassword().length() < 8) { 
+            return ResponseEntity.badRequest().body("Password must be at least 8 characters long");
+        }
 		User user = new User();
 		user.setUsername(createUserRequest.getUsername());
 		Cart cart = new Cart();
@@ -58,5 +68,14 @@ public class UserController {
 		userRepository.save(user);
 		return ResponseEntity.ok(user);
 	}
-	
+
+	private String generateJWT(String username) {
+	// Here you can set the expiration time, signing algorithm, and any claims you want
+		String jwt = Jwts.builder()
+				.setSubject(username)
+				.signWith(SignatureAlgorithm.HS256, "tanphat99") // Use a secure secret key
+				.compact();
+
+		return jwt;
+	}
 }
