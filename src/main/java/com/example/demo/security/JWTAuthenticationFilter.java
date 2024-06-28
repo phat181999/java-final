@@ -36,18 +36,14 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     public Authentication attemptAuthentication(HttpServletRequest req,
                                                 HttpServletResponse res) throws AuthenticationException {
         try {
-            
             User creds = new ObjectMapper().readValue(req.getInputStream(), User.class);
-            if (creds == null) {
-                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permissions");
-            }
 
-                return authenticationManager.authenticate(
-                        new UsernamePasswordAuthenticationToken(
-                                creds.getUsername(),
-                                creds.getPassword(),
-                                new ArrayList<>())
-                );
+            return authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            creds.getUsername(),
+                            creds.getPassword(),
+                            new ArrayList<>())
+            );
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -59,22 +55,11 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
                                             FilterChain chain,
                                             Authentication auth) throws IOException, ServletException {
         String username = ((org.springframework.security.core.userdetails.User) auth.getPrincipal()).getUsername();
-        if (!hasRequiredRole(auth, "ROLE_USER")) {
-            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permissions");
-            return;
-        }
-        if (username == null) {
-            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permissions");
-        }
         String token = JWT.create()
                 .withSubject(username)
                 .withExpiresAt(new Date(System.currentTimeMillis() + SecurityConstants.EXPIRATION_TIME))
                 .sign(HMAC512(SecurityConstants.SECRET.getBytes()));
         res.addHeader(SecurityConstants.HEADER_STRING, SecurityConstants.TOKEN_PREFIX + token);
-    }
-    
-    private boolean hasRequiredRole(Authentication auth, String role) {
-        return auth.getAuthorities().stream()
-                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals(role));
+        log.info("[LOGIN] [Success] for user : " + username);
     }
 }
